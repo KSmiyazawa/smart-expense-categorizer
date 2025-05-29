@@ -3,7 +3,6 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { parseJapaneseDate } from "@/lib/parseJapaneseDate";
 import { Expense } from "./ExpenseTable";
 
 interface ReceiptUploadProps {
@@ -39,51 +38,26 @@ export default function ReceiptUpload({ handleParsedData }: ReceiptUploadProps) 
         
         try {
             const formData = new FormData(form); 
-            const response = await fetch("api/ocr", {
+            const OCRResponse = await fetch("api/ocr", {
                 method: "POST",
                 body: formData,
             });
 
-            const data = await response.json();
-            const lines = data.ParsedResults[0].TextOverlay.Lines;
+            const OCRData = await OCRResponse.json();
+            const lines = OCRData.ParsedResults[0].TextOverlay.Lines;
+            const cleanedLines = lines.map((line) => line.LineText)
 
-            const transaction = {
-                date: "",
-                merchant: lines[0].LineText || "",
-                amount: "",
-                category: "No category selected."
-            };
-    
-            for (let i = 0; i < lines.length; i++) {
-                const lineText = lines[i].LineText;
-                console.log(lineText)
-                const japaneseDate = parseJapaneseDate(lineText);
-    
-                if (japaneseDate) {
-                    transaction.date = japaneseDate;
-                }
-                
-                if (lineText === "合計") {
-                    let maxAmount = 0;
+            const AIResponse = await fetch('/api/gpt', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ cleanedLines }),
+            });
 
-                    for (let j = i + 1; j < i + 10 && j < lines.length; j++) {
-                        const lineText = lines[j].LineText;
-                        const value = Number(lineText.replace(/[,¥.]/g, '')); // Remove commas and yen sign
-    
-                        if (!isNaN(value) && value > maxAmount) {
-                            maxAmount = value;
-                        }
-
-                        if (!isNaN(value) && value < 0) {
-                            maxAmount =- value;
-                        }
-                    }
-    
-                    transaction.amount = `¥ ${maxAmount.toLocaleString('ja-JP')}`;
-                    handleParsedData(transaction);
-                    return;
-                }
-            }
+            const data = await AIResponse.json();
+            const parsedData = JSON.parse(data.result);
+            handleParsedData(parsedData);
         } catch (error) {
             setError("Failed to upload or parse the file.");
             console.error(error, "Failed to upload or parse the file.")
