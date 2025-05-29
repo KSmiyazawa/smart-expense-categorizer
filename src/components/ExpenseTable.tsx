@@ -24,7 +24,7 @@ interface ExpenseTableProps<TData, TValue> {
 export type Expense = {
     date: string
     merchant: string
-    amount: number
+    amount: string
     category: string
 }
 
@@ -95,7 +95,7 @@ export function ExpenseTable<TData, TValue>({
               ) : (
                 <TableRow>
                   <TableCell colSpan={columns.length} className="h-24 text-center">
-                    No results.
+                    No data.
                   </TableCell>
                 </TableRow>
               )}
